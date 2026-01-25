@@ -9,6 +9,7 @@ from .base import Base
 
 if TYPE_CHECKING:
     from .case_party import CaseParty
+    from .property import Property
     # sau này bạn sẽ thêm:
     # from .property import Property
     # from .document import Document
@@ -33,5 +34,11 @@ class Case(Base):
     parties: Mapped[list["CaseParty"]] = relationship(
         back_populates="case",
         cascade= "all, delete-orphan"
+    )
+    
+    property: Mapped["Property | None"] = relationship(
+        back_populates="case",
+        uselist=False,
+        cascade="all, delete-orphan"
     )
     
