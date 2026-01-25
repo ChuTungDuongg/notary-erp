@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from .case_party import CaseParty
     from .property import Property
     # sau này bạn sẽ thêm:
-    # from .property import Property
     # from .document import Document
     
 class CaseType(str, enum.Enum):

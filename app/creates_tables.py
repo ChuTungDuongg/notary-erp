@@ -1,6 +1,10 @@
 from sqlalchemy import create_engine
 from app.models.base import Base
+
 from app.models.party import Party
+from app.models.case import Case
+from app.models.case_party import CaseParty
+from app.models.property import Property
 
 engine = create_engine("sqlite:///notary_erp.db")
 Base.metadata.create_all(engine)
