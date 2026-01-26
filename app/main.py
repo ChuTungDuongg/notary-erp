@@ -19,6 +19,7 @@ from typing import List
 from sqlalchemy import select
 from app.schemas.case import CaseListItem
 from app.models.case import Case
+from app.schemas.case import CaseDetail, PartyOut, PropertyOut
 
 
 
@@ -79,3 +80,44 @@ def download_document(doc_id: int, db: Session = Depends(get_db)):
 def list_cases(db: Session = Depends(get_db)):
     rows = db.execute(select(Case).order_by(Case.id.desc())).scalars().all()
     return rows
+
+@app.get("/cases/{case_id}", response_model=CaseDetail)
+def get_case(case_id: int, db: Session = Depends(get_db)):
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    parties_out = []
+    for cp in case.parties:  # cp: CaseParty
+        parties_out.append(
+            PartyOut(
+                id=cp.party.id,
+                full_name=cp.party.full_name,
+                cccd=cp.party.cccd,
+                address=cp.party.address,
+                phone=cp.party.phone,
+                role=cp.role.name,
+            )
+        )
+
+    prop_out = None
+    if case.property:
+        prop = case.property
+        prop_out = PropertyOut(
+            id=prop.id,
+            address=prop.address,
+            map_sheet_no=prop.map_sheet_no,
+            parcel_no=prop.parcel_no,
+            area_m2=prop.area_m2,
+            certificate_no=prop.certificate_no,
+        )
+
+    return CaseDetail(
+        id=case.id,
+        code=case.code,
+        case_type=case.case_type.name if hasattr(case.case_type, "name") else str(case.case_type),
+        signing_date=case.signing_date,
+        transfer_price=case.transfer_price,
+        property=prop_out,
+        parties=parties_out,
+    )

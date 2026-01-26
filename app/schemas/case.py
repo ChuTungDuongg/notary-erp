@@ -43,3 +43,37 @@ class CaseListItem(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class PartyOut(BaseModel):
+    id: int
+    full_name: str
+    cccd: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    role: str
+
+    class Config:
+        from_attributes = True
+
+class PropertyOut(BaseModel):
+    id: int
+    address: str
+    map_sheet_no: str
+    parcel_no: str
+    area_m2: float
+    certificate_no: str
+
+    class Config:
+        from_attributes = True
+
+class CaseDetail(BaseModel):
+    id: int
+    code: str
+    case_type: str
+    signing_date: Optional[date] = None
+    transfer_price: Optional[int] = None
+    property: Optional[PropertyOut] = None
+    parties: List[PartyOut] = []
+
+    class Config:
+        from_attributes = True
