@@ -21,6 +21,8 @@ from app.schemas.case import CaseListItem
 from app.models.case import Case
 from app.schemas.case import CaseDetail, PartyOut, PropertyOut
 
+from app.models.document import Document
+from app.schemas.document import DocumentOut
 
 
 @asynccontextmanager
@@ -121,3 +123,16 @@ def get_case(case_id: int, db: Session = Depends(get_db)):
         property=prop_out,
         parties=parties_out,
     )
+
+@app.get("/cases/{case_id}/documents", response_model=list[DocumentOut])
+def list_case_documents(case_id: int, db: Session = Depends(get_db)):
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    docs = (
+        db.execute(select(Document).where(Document.case_id == case_id).order_by(Document.id.desc()))
+        .scalars()
+        .all()
+    )
+    return docs
