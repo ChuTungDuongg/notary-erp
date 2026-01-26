@@ -9,7 +9,7 @@ from app.services.case_service import create_case
 from app.models.case import Case
 from app.models.document import Document
 from app.schemas.document import DocumentOut
-from app.services.document_generator import generate_contract # type: ignore
+from app.services.document_generator import generate_contract 
 from fastapi import HTTPException
 
 from fastapi.responses import FileResponse
