@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Query
 from pathlib import Path
 from contextlib import asynccontextmanager
 from app.db import init_db, get_db
@@ -9,7 +9,7 @@ from app.services.case_service import create_case
 from app.models.case import Case
 from app.models.document import Document
 from app.schemas.document import DocumentOut
-from app.services.document_generator import generate_contract
+from app.services.document_generator import generate_contract # type: ignore
 from fastapi import HTTPException
 
 from fastapi.responses import FileResponse
@@ -21,8 +21,10 @@ from app.schemas.case import CaseListItem
 from app.models.case import Case
 from app.schemas.case import CaseDetail, PartyOut, PropertyOut
 
-from app.models.document import Document
+from app.models.document import Document, DocumentType
 from app.schemas.document import DocumentOut
+
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -136,3 +138,25 @@ def list_case_documents(case_id: int, db: Session = Depends(get_db)):
     )
     return docs
 
+@app.get("/cases/{case_id}/documents/latest", response_model=DocumentOut)
+def get_latest_document(
+    case_id: int,
+    doc_type: DocumentType = Query(DocumentType.CONTRACT_TRANSFER),
+    db: Session = Depends(get_db),
+):
+    # check case tồn tại (optional nhưng nên có)
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Case not found")
+
+    latest = db.execute(
+        select(Document)
+        .where(Document.case_id == case_id, Document.doc_type == doc_type)
+        .order_by(Document.version.desc())   # hoặc created_at.desc()
+        .limit(1)
+    ).scalar_one_or_none()
+
+    if not latest:
+        raise HTTPException(status_code=404, detail="No document for this case/doc_type")
+
+    return latest
