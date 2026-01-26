@@ -15,6 +15,12 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from pathlib import Path
 
+from typing import List
+from sqlalchemy import select
+from app.schemas.case import CaseListItem
+from app.models.case import Case
+
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -68,3 +74,8 @@ def download_document(doc_id: int, db: Session = Depends(get_db)):
         filename=path.name,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     )
+
+@app.get("/cases", response_model=List[CaseListItem])
+def list_cases(db: Session = Depends(get_db)):
+    rows = db.execute(select(Case).order_by(Case.id.desc())).scalars().all()
+    return rows

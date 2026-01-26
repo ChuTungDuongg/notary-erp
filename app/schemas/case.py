@@ -33,3 +33,13 @@ class CaseOut(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class CaseListItem(BaseModel):
+    id: int
+    code: str
+    case_type: str
+    signing_date: Optional[date] = None
+    transfer_price: Optional[int] = None
+
+    class Config:
+        from_attributes = True
