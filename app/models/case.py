@@ -10,6 +10,7 @@ from .base import Base
 if TYPE_CHECKING:
     from .case_party import CaseParty
     from .property import Property
+    from .document import Document
     # sau này bạn sẽ thêm:
     # from .document import Document
     
@@ -40,4 +41,11 @@ class Case(Base):
         uselist=False,
         cascade="all, delete-orphan"
     )
+    
+    documents: Mapped[list["Document"]] = relationship(
+        back_populates="case",
+        cascade="all, delete-orphan"
+    )
+
+    transfer_price : Mapped[float | None] = mapped_column(Numeric(18,2), nullable= True)
     
