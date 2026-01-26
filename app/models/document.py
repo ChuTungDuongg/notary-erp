@@ -2,7 +2,8 @@ import enum
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String, Integer, DateTime, Enum as SAEnum
+from sqlalchemy import ForeignKey, String, Integer, DateTime, Enum as SAEnum, UniqueConstraint
+
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from.base import Base
@@ -17,6 +18,9 @@ class DocumentType(str, enum.Enum):
 
 class Document(Base):
     __tablename__ = "documents"
+    __table_args__ = (
+        UniqueConstraint("case_id", "doc_type", "version", name="uq_documents_case_type_version"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
 

@@ -24,7 +24,6 @@ from app.schemas.case import CaseDetail, PartyOut, PropertyOut
 from app.models.document import Document
 from app.schemas.document import DocumentOut
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # startup
@@ -136,3 +135,4 @@ def list_case_documents(case_id: int, db: Session = Depends(get_db)):
         .all()
     )
     return docs
+
