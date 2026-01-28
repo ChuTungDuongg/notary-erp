@@ -56,9 +56,15 @@ def api_generate_contract(case_id: int, db: Session = Depends(get_db)):
 
     if not case.property:
         raise HTTPException(status_code=400, detail="Case has no property")
-    if not case.parties:
-        raise HTTPException(status_code=400, detail="Case has no parties")
-
+    roles = [getattr(cp.role, "name", None) for cp in (case.parties or [])]
+    seller_count = sum(1 for r in roles if r == "SELLER")
+    buyer_count = sum(1 for r in roles if r == "BUYER")
+    if seller_count != 1 or buyer_count != 1:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Case must have exactly 1 SELLER and 1 BUYER (got SELLER={seller_count}, BUYER={buyer_count})",
+        )
+    
     doc = generate_contract(case, db)
     return doc
 

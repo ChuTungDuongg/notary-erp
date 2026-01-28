@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select
-
+from fastapi import HTTPException
 from app.schemas.case import CaseCreate
 from app.models.case import Case, CaseType
 from app.models.party import Party
@@ -19,6 +19,7 @@ def get_or_create_party(db: Session, *, cccd: str, **fields) -> Party:
     return p
 
 def create_case(db: Session, payload : CaseCreate) -> Case:
+    validate_case_payload(payload)
     case = Case(
         code=payload.code,
         case_type=CaseType[payload.case_type],  # expects enum name
@@ -39,9 +40,39 @@ def create_case(db: Session, payload : CaseCreate) -> Case:
             address=p.address,
             phone=p.phone,
         )
-        case.parties.append(CaseParty(party=party, role=role))
+        link = CaseParty(party = party, role = role)
+        db.add(link)
+        case.parties.append(link)
 
     db.add(case)
     db.commit()
     db.refresh(case)
     return case
+
+def validate_case_payload(payload : CaseCreate) -> None:
+    if payload.property is None:
+        raise HTTPException(status_code=400, detail="properties is required!")
+    
+    if not payload.parties or len(payload.parties) == 0:
+        raise HTTPException(status_code=400, detail="parties is required!")
+    
+    roles = [p.role for p in payload.parties]
+    seller_count = sum(1 for r in roles if r == "SELLER")
+    buyer_count = sum(1 for r in roles if r == "BUYER")
+
+    if seller_count != 1 or buyer_count != 1:
+        raise HTTPException(
+            status_code=400,
+            detail=f"require exactly 1 SELLER and 1 BUYER (got SELLER={seller_count}, BUYER={buyer_count})",
+        )
+    #cccd không được trùng trong payload 
+    cccds = [p.cccd for p in payload.parties if p.cccd]
+    if len(cccds) != len(set(cccds)):
+        raise HTTPException(status_code=400, detail="duplicate cccd in parties")
+    
+    if payload.transfer_price is not None and payload.transfer_price < 0:
+        raise HTTPException(status_code= 400, detail="transfer price must be higher > 0")
+    
+
+    
+
