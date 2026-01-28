@@ -10,6 +10,7 @@ from app.models.party import Party  # noqa
 from app.models.case_party import CaseParty  # noqa
 from app.models.property import Property  # noqa
 from app.models.document import Document  # noqa
+from app.models.sequences import DailySequence
 
 
 DB_URL = "sqlite:///notary_erp.db"

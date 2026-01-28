@@ -19,7 +19,7 @@ class PropertyIn(BaseModel):
     certificate_no : str
     
 class CaseCreate(BaseModel):
-    code: str
+    code: Optional[str] = None
     case_type: str  # ví dụ "TRANSFER_LAND"
     signing_date: Optional[date] = None
     transfer_price: Optional[int] = None
