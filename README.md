@@ -1,9 +1,19 @@
-# Notary ERP
+# Notary ERP ✨
 
-## Giới thiệu
+## Giới thiệu 🌷
 Dự án này là một ứng dụng FastAPI phục vụ nghiệp vụ công chứng (notary), tập trung vào quản lý hồ sơ (case) và sinh văn bản hợp đồng từ mẫu DOCX.
 
-## Cấu trúc thư mục
+## Mục tiêu 🎯
+- Quản lý hồ sơ công chứng rõ ràng, dễ truy vết.
+- Tự động hoá sinh hợp đồng từ template DOCX.
+- Hỗ trợ luồng làm việc nhanh, ít thao tác thủ công.
+
+## Tính năng chính 💡
+- 🗂️ **Quản lý hồ sơ (case)**: lưu thông tin tài sản và các bên tham gia.
+- 📝 **Sinh hợp đồng**: thay thế placeholder trong template DOCX và xuất file.
+- 📥 **Tải tài liệu**: trả về file DOCX đã sinh qua API.
+
+## Cấu trúc thư mục 📁
 
 ```
 .
@@ -34,12 +44,12 @@ Dự án này là một ứng dụng FastAPI phục vụ nghiệp vụ công ch�
 └── README.md                 # Tài liệu dự án
 ```
 
-## Luồng chức năng chính
-- **Tạo hồ sơ (case)**: API tạo case, lưu thông tin tài sản và các bên tham gia.
-- **Sinh hợp đồng**: Dựa vào template DOCX trong `templates/`, hệ thống thay thế placeholder và lưu file trong `data/files/`.
-- **Tải tài liệu**: API trả về file DOCX đã sinh.
+## Luồng chức năng chính 🔄
+1. **Tạo hồ sơ (case)**: API tạo case, lưu thông tin tài sản và các bên tham gia.
+2. **Sinh hợp đồng**: Dựa vào template DOCX trong `templates/`, hệ thống thay thế placeholder và lưu file trong `data/files/`.
+3. **Tải tài liệu**: API trả về file DOCX đã sinh.
 
-## Gợi ý khởi chạy nhanh
+## Gợi ý khởi chạy nhanh 🚀
 1. Cài dependencies:
    ```bash
    pip install -r requirements.txt
@@ -49,3 +59,7 @@ Dự án này là một ứng dụng FastAPI phục vụ nghiệp vụ công ch�
    uvicorn app.main:app --reload
    ```
 3. Truy cập tài liệu API: `http://localhost:8000/docs`
+
+## Ghi chú nhỏ 💬
+- Nếu cần đổi template, hãy thay file trong `templates/` và đảm bảo placeholder khớp dữ liệu đầu vào.
+- Nên dùng môi trường ảo (venv/conda) để quản lý dependency gọn gàng.
