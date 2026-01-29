@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import select, or_, and_
 from datetime import date
@@ -11,6 +11,7 @@ from app.models.case_party import CaseParty
 from app.models.party import Party
 from app.schemas.case import CaseListItem
 from app.models.document import DocumentType
+from app.models.document import Document
 
 from app.schemas.case import (
     CaseCreate,
