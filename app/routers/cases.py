@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
-from sqlalchemy import select
-from typing import List
+from sqlalchemy import select, or_, and_
+from datetime import date
+from typing import List, Optional
 
 from app.db import get_db
-
-from app.models.case import Case
-from app.models.document import Document, DocumentType
+from app.models.case import Case, CaseType
+from app.models.property import Property
+from app.models.case_party import CaseParty
+from app.models.party import Party
+from app.schemas.case import CaseListItem
+from app.models.document import DocumentType
 
 from app.schemas.case import (
     CaseCreate,
@@ -34,48 +38,6 @@ def api_create_case(payload: CaseCreate, db: Session = Depends(get_db)):
 def list_cases(db: Session = Depends(get_db)):
     rows = db.execute(select(Case).order_by(Case.id.desc())).scalars().all()
     return rows
-
-
-@router.get("/{case_id}", response_model=CaseDetail)
-def get_case(case_id: int, db: Session = Depends(get_db)):
-    case = db.get(Case, case_id)
-    if not case:
-        raise HTTPException(status_code=404, detail="Case not found")
-
-    parties_out = []
-    for cp in case.parties or []:
-        parties_out.append(
-            PartyOut(
-                id=cp.party.id,
-                full_name=cp.party.full_name,
-                cccd=cp.party.cccd,
-                address=cp.party.address,
-                phone=cp.party.phone,
-                role=cp.role.name,
-            )
-        )
-
-    prop_out = None
-    if case.property:
-        prop = case.property
-        prop_out = PropertyOut(
-            id=prop.id,
-            address=prop.address,
-            map_sheet_no=prop.map_sheet_no,
-            parcel_no=prop.parcel_no,
-            area_m2=prop.area_m2,
-            certificate_no=prop.certificate_no,
-        )
-
-    return CaseDetail(
-        id=case.id,
-        code=case.code,
-        case_type=case.case_type.name if hasattr(case.case_type, "name") else str(case.case_type),
-        signing_date=case.signing_date,
-        transfer_price=case.transfer_price,
-        property=prop_out,
-        parties=parties_out,
-    )
 
 
 @router.post("/{case_id}/generate-contract", response_model=DocumentOut)
@@ -135,3 +97,91 @@ def get_latest_document(
         raise HTTPException(status_code=404, detail="No document for this case/doc_type")
 
     return latest
+
+@router.get("/search", response_model=List[CaseListItem])
+def search_cases(
+    db: Session = Depends(get_db),
+
+    # search chung
+    q: Optional[str] = Query(None, description="Search: code/cccd/name/address"),
+
+    # filter cụ thể
+    id: Optional[int] = Query(None),
+    case_type: Optional[CaseType] = Query(None),  # Swagger sẽ show đúng enum
+    code: Optional[str] = Query(None),
+    cccd: Optional[str] = Query(None),
+    party_name: Optional[str] = Query(None),
+    property_address: Optional[str] = Query(None),
+    signing_from: Optional[date] = Query(None),
+    signing_to: Optional[date] = Query(None),
+
+    # paging
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=200),
+):
+    stmt = select(Case).order_by(Case.id.desc())
+
+    # =========
+    # 1) FILTER CỨNG (AND) - không join cũng lọc được
+    # =========
+    if id is not None:
+        stmt = stmt.where(Case.id == id)
+    
+    if case_type is not None:
+        stmt = stmt.where(Case.case_type == case_type)
+
+    if code:
+        stmt = stmt.where(Case.code.ilike(f"%{code}%"))
+
+    if signing_from:
+        stmt = stmt.where(Case.signing_date >= signing_from)
+
+    if signing_to:
+        stmt = stmt.where(Case.signing_date <= signing_to)
+
+    # =========
+    # 2) JOIN khi cần search/filter theo party/property
+    # =========
+    need_party = any([q, cccd, party_name])
+    need_prop = any([q, property_address])
+
+    if need_party:
+        stmt = stmt.join(CaseParty, CaseParty.case_id == Case.id).join(Party, Party.id == CaseParty.party_id)
+
+    if need_prop:
+        stmt = stmt.join(Property, Property.case_id == Case.id)
+
+    # =========
+    # 3) FILTER theo bảng join (AND)
+    # =========
+    if cccd:
+        stmt = stmt.where(Party.cccd.ilike(f"%{cccd}%"))
+
+    if party_name:
+        stmt = stmt.where(Party.full_name.ilike(f"%{party_name}%"))
+
+    if property_address:
+        stmt = stmt.where(Property.address.ilike(f"%{property_address}%"))
+
+    # =========
+    # 4) SEARCH CHUNG (OR) - chỉ dành cho q
+    # =========
+    if q:
+        stmt = stmt.where(
+            or_(
+                Case.code.ilike(f"%{q}%"),
+                Party.cccd.ilike(f"%{q}%") if need_party else False,
+                Party.full_name.ilike(f"%{q}%") if need_party else False,
+                Property.address.ilike(f"%{q}%") if need_prop else False,
+            )
+        )
+
+    # =========
+    # 5) DISTINCT để tránh duplicate Case khi join
+    # =========
+    if need_party or need_prop:
+        stmt = stmt.distinct(Case.id)
+
+    offset = (page - 1) * page_size
+    rows = db.execute(stmt.offset(offset).limit(page_size)).scalars().all()
+    return rows
