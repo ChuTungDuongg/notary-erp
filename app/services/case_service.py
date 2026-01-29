@@ -11,6 +11,7 @@ from app.services.sequence_service import next_case_code
 
 CASE_CODE_PREFIX_MAP = {
     "TRANSFER_LAND": "CN",
+    "AUTHORIZATION": "UQ",
 }
 
 

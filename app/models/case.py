@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     
 class CaseType(str, enum.Enum):
     TRANSFER_LAND = "TRANSFER_LAND"
+    AUTHORIZATION = "AUTHORIZATION"
     
     
 class Case(Base):
