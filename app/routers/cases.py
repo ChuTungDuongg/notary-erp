@@ -9,9 +9,10 @@ from app.models.case import Case, CaseType
 from app.models.property import Property
 from app.models.case_party import CaseParty
 from app.models.party import Party
-from app.schemas.case import CaseListItem
+from app.schemas.case import CaseListItem, CaseUpdate, CaseOut
 from app.models.document import DocumentType
 from app.models.document import Document
+from app.services.case_service import update_case
 
 from app.schemas.case import (
     CaseCreate,
@@ -186,3 +187,7 @@ def search_cases(
     offset = (page - 1) * page_size
     rows = db.execute(stmt.offset(offset).limit(page_size)).scalars().all()
     return rows
+
+@router.put("/{case_id}", response_model=CaseOut)
+def api_update_case(case_id: int, payload: CaseUpdate, db: Session = Depends(get_db)):
+    return update_case(db, case_id, payload)
