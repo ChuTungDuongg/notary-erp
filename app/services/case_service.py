@@ -14,8 +14,6 @@ CASE_CODE_PREFIX_MAP = {
     "AUTHORIZATION": "UQ",
 }
 
-
-
 def get_or_create_party(db: Session, *, cccd: str, **fields) -> Party:
     existing = db.execute(select(Party).where(Party.cccd == cccd)).scalar_one_or_none()
     if existing:
