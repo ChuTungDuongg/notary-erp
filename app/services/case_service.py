@@ -30,7 +30,7 @@ def create_case(db: Session, payload: CaseCreate) -> Case:
 
     try:
         with db.begin():
-            # prefix theo case_type (input đang là string)
+            # prefix theo case_type (payload.case_type là string)
             prefix = CASE_CODE_PREFIX_MAP.get(payload.case_type, "HS")
 
             # code: nếu client gửi thì check trùng, không thì generate
@@ -44,7 +44,7 @@ def create_case(db: Session, payload: CaseCreate) -> Case:
             else:
                 code = next_case_code(db, prefix=prefix, d=payload.signing_date)
 
-            # parse CaseType (vì model CaseType của bạn là TRANSFER_LAND)
+            # parse enum CaseType
             try:
                 case_type = CaseType[payload.case_type]
             except KeyError:
@@ -53,23 +53,26 @@ def create_case(db: Session, payload: CaseCreate) -> Case:
                 except ValueError:
                     raise HTTPException(status_code=400, detail=f"invalid case_type: {payload.case_type}")
 
+            # 1) tạo case + add sớm
             case = Case(
                 code=code,
                 case_type=case_type,
                 signing_date=payload.signing_date,
                 transfer_price=payload.transfer_price,
             )
+            db.add(case)
+            db.flush()  # có case.id ngay
 
+            # 2) property (gắn sau cũng được)
+            if payload.property is None:
+                raise HTTPException(status_code=400, detail="property is required")
             case.property = Property(**payload.property.model_dump())
 
-            # QUAN TRỌNG: add case trước + flush để case có id và nằm trong session
-            db.add(case)
-            db.flush()
-
-            # QUAN TRỌNG: chặn autoflush khi đang query get_or_create_party
+            # 3) parties: tạo link rõ ràng (không rely vào append/cascade)
             for p in payload.parties:
                 role = PartyRole[p.role]
 
+                # chặn autoflush khi query Party
                 with db.no_autoflush:
                     party = get_or_create_party(
                         db,
@@ -81,9 +84,13 @@ def create_case(db: Session, payload: CaseCreate) -> Case:
                         phone=p.phone,
                     )
 
-                # chỉ cần append, cascade sẽ tự add link
-                link = CaseParty(party=party, role=role)
-                case.parties.append(link)
+                link = CaseParty(
+                    case_id=case.id,   # ✅ set trực tiếp FK để khỏi warning/autoflush
+                    party_id=party.id if party.id else None,
+                    party=party,       # ✅ nếu party mới chưa có id, SQLAlchemy vẫn lo được sau flush
+                    role=role,
+                )
+                db.add(link)
 
             db.flush()
 
@@ -95,6 +102,7 @@ def create_case(db: Session, payload: CaseCreate) -> Case:
     except Exception:
         db.rollback()
         raise
+
 
 def validate_case_payload(payload : CaseCreate) -> None:
     if payload.property is None:

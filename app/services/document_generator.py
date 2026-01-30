@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 
 from app.models.case import Case
 from app.models.document import Document, DocumentType
+import hashlib
+import json
 
 
 def _replace_in_paragraph(paragraph, mapping: Dict[str, str]) -> None:
@@ -62,25 +64,25 @@ def _replace_everywhere(doc, mapping: Dict[str, str]) -> None:
 
 
 def generate_contract(case: Case, db: Session) -> Document:
-    """
-    Generate a new contract docx from template, create a Document record with auto-incremented version.
-    IMPORTANT: do NOT commit here. Caller should commit.
-    """
+    doc_type = DocumentType.CONTRACT_TRANSFER
+    new_hash = compute_content_hash(case, doc_type)
+
+    latest = db.execute(
+        select(Document)
+        .where(Document.case_id == case.id, Document.doc_type == doc_type)
+        .order_by(Document.version.desc())
+        .limit(1)
+    ).scalar_one_or_none()
+
+    if latest and latest.content_hash == new_hash and latest.file_path and Path(latest.file_path).exists():
+        return latest
+
+    new_version = (latest.version + 1) if latest else 1
+
     doc = DocxDocument("templates/contract_transfer.docx")
 
-    # 1) next version by (case_id, doc_type)
-    max_ver = db.execute(
-        select(func.max(Document.version)).where(
-            Document.case_id == case.id,
-            Document.doc_type == DocumentType.CONTRACT_TRANSFER,
-        )
-    ).scalar_one()
-    new_version = (max_ver or 0) + 1
-
-    prop = case.property  # can be None
-
-    # 2) build mapping
-    data: Dict[str, str] = {
+    prop = case.property
+    data = {
         "{{transfer_price}}": f"{case.transfer_price:,}".replace(",", ".") if case.transfer_price else "",
         "{{signing_date}}": str(case.signing_date) if case.signing_date else "",
 
@@ -109,23 +111,65 @@ def generate_contract(case: Case, db: Session) -> Document:
             data["{{buyer_cccd}}"] = cp.party.cccd or ""
             data["{{buyer_address}}"] = cp.party.address or ""
 
-    # 3) replace
     _replace_everywhere(doc, data)
 
-    # 4) output path (folder per case)
     out_dir = Path("data/files") / case.code
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = out_dir / f"contract_v{new_version}.docx"
     doc.save(str(out_path))
 
-    # 5) db record (no commit here)
     record = Document(
         case_id=case.id,
-        doc_type=DocumentType.CONTRACT_TRANSFER,
+        doc_type=doc_type,
         version=new_version,
         file_path=str(out_path),
+        content_hash=new_hash,
     )
     db.add(record)
     db.flush()
     db.refresh(record)
     return record
+
+
+
+def _canonical_case_payload(case: Case, doc_type: DocumentType) -> dict:
+    prop = case.property
+    parties = []
+    for cp in (case.parties or []):
+        parties.append({
+            "role": getattr(cp.role, "name", str(cp.role)),
+            "cccd": cp.party.cccd,
+            "full_name": cp.party.full_name,
+            "address": cp.party.address,
+            "phone": cp.party.phone,
+            "cccd_issue_date": str(getattr(cp.party, "cccd_issue_date", "") or ""),
+            "cccd_issue_place": getattr(cp.party, "cccd_issue_place", "") or "",
+        })
+
+    # sort để hash ổn định (không phụ thuộc thứ tự load)
+    parties.sort(key=lambda x: (x["role"], x["cccd"] or ""))
+
+    return {
+        "doc_type": doc_type.value if hasattr(doc_type, "value") else str(doc_type),
+        "case": {
+            "id": case.id,
+            "code": case.code,
+            "case_type": case.case_type.value if hasattr(case.case_type, "value") else str(case.case_type),
+            "signing_date": str(case.signing_date or ""),
+            "transfer_price": str(case.transfer_price or ""),
+        },
+        "property": None if not prop else {
+            "address": prop.address,
+            "map_sheet_no": prop.map_sheet_no,
+            "parcel_no": prop.parcel_no,
+            "area_m2": str(prop.area_m2 or ""),
+            "certificate_no": prop.certificate_no,
+        },
+        "parties": parties,
+    }
+
+
+def compute_content_hash(case: Case, doc_type: DocumentType) -> str:
+    payload = _canonical_case_payload(case, doc_type)
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()

@@ -36,3 +36,5 @@ class Document(Base):
                                                   default=lambda: datetime.now(timezone.utc))
     
     case: Mapped["Case"] = relationship(back_populates="documents")
+    
+    content_hash: Mapped[str | None] = mapped_column(String(64), nullable= True, index = True)
