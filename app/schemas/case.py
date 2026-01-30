@@ -77,3 +77,26 @@ class CaseDetail(BaseModel):
 
     class Config:
         from_attributes = True
+        
+class PropertyUpsert(BaseModel):
+    address: str
+    map_sheet_no: str
+    parcel_no: str
+    area_m2: float
+    certificate_no: str
+
+class PartyUpsert(BaseModel):
+    role: str  # "SELLER" / "BUYER"
+    cccd: str
+    full_name: str
+    cccd_issue_date: Optional[date] = None
+    cccd_issue_place: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+
+class CaseUpdate(BaseModel):
+    case_type: Optional[str] = None
+    signing_date: Optional[date] = None
+    transfer_price: Optional[float] = None
+    property: Optional[PropertyUpsert] = None
+    parties: Optional[List[PartyUpsert]] = None
