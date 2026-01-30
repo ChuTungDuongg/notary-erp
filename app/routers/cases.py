@@ -61,6 +61,7 @@ def api_generate_contract(case_id: int, db: Session = Depends(get_db)):
         )
 
     doc = generate_contract(case, db)
+    db.commit()
     return doc
 
 
