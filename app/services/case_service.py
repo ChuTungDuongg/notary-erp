@@ -145,7 +145,6 @@ def validate_parties_payload(parties) -> None:
     if len(cccds) != len(set(cccds)):
         raise HTTPException(status_code=400, detail="duplicate cccd in parties")
 
-
 def update_case(db: Session, case_id: int, payload: CaseUpdate) -> Case:
     case = db.get(Case, case_id)
     if not case:
@@ -178,15 +177,17 @@ def update_case(db: Session, case_id: int, payload: CaseUpdate) -> Case:
             else:
                 case.property = Property(**payload.property.model_dump())
 
-        # --- parties ---
+        # --- parties (replace all) ---
         if payload.parties is not None:
             validate_parties_payload(payload.parties)
 
+            # clear old links
             case.parties.clear()
             db.flush()
 
             for p in payload.parties:
                 role = PartyRole[p.role]
+
                 with db.no_autoflush:
                     party = get_or_create_party(
                         db,
@@ -197,10 +198,17 @@ def update_case(db: Session, case_id: int, payload: CaseUpdate) -> Case:
                         address=p.address,
                         phone=p.phone,
                     )
-                case.parties.append(CaseParty(party=party, role=role))
+
+                # ✅ add link rõ ràng, set case_id để khỏi warning
+                link = CaseParty(
+                    case_id=case.id,
+                    party=party,
+                    role=role,
+                )
+                db.add(link)
 
         db.flush()
-        db.commit()        # ✅ commit ở đây
+        db.commit()
         db.refresh(case)
         return case
 
@@ -210,6 +218,7 @@ def update_case(db: Session, case_id: int, payload: CaseUpdate) -> Case:
     except Exception:
         db.rollback()
         raise
+
 
 
     
