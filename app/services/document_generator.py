@@ -3,9 +3,11 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Dict
 
+from fastapi import HTTPException
 from docx import Document as DocxDocument
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
+from app.models.case import CaseStatus
 
 from app.models.case import Case
 from app.models.document import Document, DocumentType
@@ -64,6 +66,11 @@ def _replace_everywhere(doc, mapping: Dict[str, str]) -> None:
 
 
 def generate_contract(case: Case, db: Session) -> Document:
+    if case.status == CaseStatus.ARCHIVED:
+        raise HTTPException(
+            status_code=400,
+            detail="archived case cannot generate documents",
+        )
     doc_type = DocumentType.CONTRACT_TRANSFER
     new_hash = compute_content_hash(case, doc_type)
 
@@ -128,6 +135,8 @@ def generate_contract(case: Case, db: Session) -> Document:
     db.add(record)
     db.flush()
     db.refresh(record)
+    if case.status == CaseStatus.DRAFT:
+        case.status = CaseStatus.READY
     return record
 
 

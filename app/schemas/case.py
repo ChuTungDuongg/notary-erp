@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from datetime import date
 from typing import Optional, List
+from app.models.case import CaseStatus
 
 class PartyIn(BaseModel):
     full_name : str
@@ -30,7 +31,7 @@ class CaseCreate(BaseModel):
 class CaseOut(BaseModel):
     id: int
     code: str
-
+    status: CaseStatus
     class Config:
         from_attributes = True
         
@@ -40,6 +41,7 @@ class CaseListItem(BaseModel):
     case_type: str
     signing_date: Optional[date] = None
     transfer_price: Optional[int] = None
+    status: CaseStatus
 
     class Config:
         from_attributes = True
@@ -74,6 +76,7 @@ class CaseDetail(BaseModel):
     transfer_price: Optional[int] = None
     property: Optional[PropertyOut] = None
     parties: List[PartyOut] = []
+    status : CaseStatus
 
     class Config:
         from_attributes = True
@@ -100,3 +103,6 @@ class CaseUpdate(BaseModel):
     transfer_price: Optional[float] = None
     property: Optional[PropertyUpsert] = None
     parties: Optional[List[PartyUpsert]] = None
+
+class CaseStatusUpdate(BaseModel):
+    status: CaseStatus

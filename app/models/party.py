@@ -14,8 +14,8 @@ class Party(Base):
     full_name : Mapped[str] = mapped_column(String(255), nullable=False)
     cccd : Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
     
-    cccd_issue_date : Mapped[date] = mapped_column(Date, nullable=False)
-    cccd_issue_place : Mapped[str] = mapped_column(String(255), nullable=False)
+    cccd_issue_date : Mapped[date | None] = mapped_column(Date, nullable=True)
+    cccd_issue_place : Mapped[str | None] = mapped_column(String(255), nullable=True)
     
     address : Mapped[str | None] = mapped_column(String(500), nullable=True)
     phone : Mapped[str | None] = mapped_column(String(20), nullable=True)

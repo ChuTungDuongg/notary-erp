@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select
 from fastapi import HTTPException
 from app.schemas.case import CaseCreate, CaseUpdate
-from app.models.case import Case, CaseType
+from app.models.case import Case, CaseType, CaseStatus
 from app.models.party import Party
 from app.models.case_party import CaseParty, PartyRole
 from app.models.property import Property
@@ -150,6 +150,8 @@ def update_case(db: Session, case_id: int, payload: CaseUpdate) -> Case:
     if not case:
         raise HTTPException(status_code=404, detail="Case not found")
 
+    ensure_case_editable(case)
+
     try:
         # --- update field đơn giản ---
         if payload.signing_date is not None:
@@ -219,7 +221,45 @@ def update_case(db: Session, case_id: int, payload: CaseUpdate) -> Case:
         db.rollback()
         raise
 
+def ensure_case_editable(case: Case):
+    if case.status in (CaseStatus.SIGNED, CaseStatus.ARCHIVED):
+        raise HTTPException(
+            status_code=400,
+            detail=f"case is {case.status}, editing is not allowed! "
+        )
 
-
+def change_case_status(db: Session, case_id : int, new_status: CaseStatus) -> Case:
+    case = db.get(Case, case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail=f"Case id: {case_id} not found")
     
+    allowed = {
+        CaseStatus.DRAFT: {CaseStatus.READY},
+        CaseStatus.READY: {CaseStatus.SIGNED},
+        CaseStatus.SIGNED: {CaseStatus.ARCHIVED},
+        CaseStatus.ARCHIVED: set(),
+    }
+
+    if new_status not in allowed[case.status]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"cannot change status from {case.status} to {new_status}",
+        )
+    
+    if new_status == CaseStatus.SIGNED:
+        _validate_before_sign(case)
+
+    case.status = new_status
+    db.commit()
+    db.refresh(case)
+    return case
+    
+def _validate_before_sign(case: Case):
+    if not case.property:
+        raise HTTPException(400, "cannot sign case without property")
+
+    roles = [cp.role.name for cp in case.parties]
+    if roles.count("SELLER") != 1 or roles.count("BUYER") != 1:
+        raise HTTPException(400, "case must have exactly 1 SELLER and 1 BUYER")
+
 

@@ -18,7 +18,12 @@ class CaseType(str, enum.Enum):
     TRANSFER_LAND = "TRANSFER_LAND"
     AUTHORIZATION = "AUTHORIZATION"
     
-    
+class CaseStatus(str, enum.Enum):
+    DRAFT = "DRAFT"
+    READY = "READY"
+    SIGNED = "SIGNED"
+    ARCHIVED = "ARCHIVED"
+
 class Case(Base):
     __tablename__ = "cases"
     id: Mapped[int] = mapped_column(primary_key= True)
@@ -49,4 +54,10 @@ class Case(Base):
     )
 
     transfer_price : Mapped[float | None] = mapped_column(Numeric(18,2), nullable= True)
+
+    status: Mapped[CaseStatus] = mapped_column(
+        SAEnum(CaseStatus),
+        nullable = False,
+        default= CaseStatus.DRAFT,
+    )
     

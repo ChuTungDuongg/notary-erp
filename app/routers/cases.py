@@ -9,10 +9,10 @@ from app.models.case import Case, CaseType
 from app.models.property import Property
 from app.models.case_party import CaseParty
 from app.models.party import Party
-from app.schemas.case import CaseListItem, CaseUpdate, CaseOut
+from app.schemas.case import CaseListItem, CaseUpdate, CaseOut, CaseStatusUpdate
 from app.models.document import DocumentType
 from app.models.document import Document
-from app.services.case_service import update_case
+from app.services.case_service import update_case, change_case_status
 
 from app.schemas.case import (
     CaseCreate,
@@ -192,3 +192,11 @@ def search_cases(
 @router.put("/{case_id}", response_model=CaseOut)
 def api_update_case(case_id: int, payload: CaseUpdate, db: Session = Depends(get_db)):
     return update_case(db, case_id, payload)
+
+@router.post("/{case_id}/status", response_model= CaseOut)
+def update_case_status(
+    case_id : int,
+    payload : CaseStatusUpdate,
+    db: Session = Depends(get_db),
+):
+    return change_case_status(db, case_id, payload.status)
